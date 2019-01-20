@@ -1,25 +1,19 @@
 import argparse
-import scipy
-from scipy import ndimage
-import numpy as np
-import sys
-from packaging import version
+import os
 
+import numpy as np
 import torch
+import torch.nn as nn
+from PIL import Image
+from packaging import version
 from torch.autograd import Variable
-import torchvision.models as models
-import torch.nn.functional as F
 from torch.utils import data, model_zoo
+
+from dataset.cityscapes_dataset import cityscapesDataSet
 from model.deeplab_multi import DeeplabMulti
 from model.deeplab_vgg import DeeplabVGG
-from dataset.cityscapes_dataset import cityscapesDataSet
-from collections import OrderedDict
-import os
-from PIL import Image
 
-import matplotlib.pyplot as plt
-import torch.nn as nn
-IMG_MEAN = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)
+IMG_MEAN = np.array((104.00698793, 116.66876762, 122.67891434), dtype=np.float32)
 
 DATA_DIRECTORY = './data/Cityscapes/data'
 DATA_LIST_PATH = './dataset/cityscapes_list/val.txt'
@@ -27,7 +21,7 @@ SAVE_PATH = './result/cityscapes'
 
 IGNORE_LABEL = 255
 NUM_CLASSES = 19
-NUM_STEPS = 500 # Number of images in the validation set.
+NUM_STEPS = 500  # Number of images in the validation set.
 RESTORE_FROM = 'http://vllab.ucmerced.edu/ytsai/CVPR18/GTA2Cityscapes_multi-ed35151c.pth'
 RESTORE_FROM_VGG = 'http://vllab.ucmerced.edu/ytsai/CVPR18/GTA2Cityscapes_vgg-ac4ac9f6.pth'
 SET = 'val'
@@ -48,6 +42,7 @@ def colorize_mask(mask):
     new_mask.putpalette(palette)
 
     return new_mask
+
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -87,6 +82,7 @@ def main():
     if not os.path.exists(args.save):
         os.makedirs(args.save)
 
+    model = None
     if args.model == 'DeeplabMulti':
         model = DeeplabMulti(num_classes=args.num_classes)
     elif args.model == 'DeeplabVGG':
@@ -94,18 +90,26 @@ def main():
         if args.restore_from == RESTORE_FROM:
             args.restore_from = RESTORE_FROM_VGG
 
-    if args.restore_from[:4] == 'http' :
+    if args.restore_from[:4] == 'http':
         saved_state_dict = model_zoo.load_url(args.restore_from)
     else:
         saved_state_dict = torch.load(args.restore_from)
+
     model.load_state_dict(saved_state_dict)
-
     model.eval()
-    model.cuda(gpu0)
+    # model.cuda(gpu0)
 
-    testloader = data.DataLoader(cityscapesDataSet(args.data_dir, args.data_list, crop_size=(1024, 512), mean=IMG_MEAN, scale=False, mirror=False, set=args.set),
-                                    batch_size=1, shuffle=False, pin_memory=True)
-
+    testloader = data.DataLoader(
+        cityscapesDataSet(args.data_dir,
+                          args.data_list,
+                          crop_size=(1024, 512),
+                          mean=IMG_MEAN,
+                          scale=False,
+                          mirror=False,
+                          set=args.set),
+        batch_size=1,
+        shuffle=False,
+        pin_memory=False)
 
     if version.parse(torch.__version__) >= version.parse('0.4.0'):
         interp = nn.Upsample(size=(1024, 2048), mode='bilinear', align_corners=True)
@@ -114,16 +118,19 @@ def main():
 
     for index, batch in enumerate(testloader):
         if index % 100 == 0:
-            print '%d processd' % index
+            print('%d processd' % index)
         image, _, name = batch
+        output = None
         if args.model == 'DeeplabMulti':
-            output1, output2 = model(Variable(image, volatile=True).cuda(gpu0))
-            output = interp(output2).cpu().data[0].numpy()
+            with torch.no_grad():
+                output1, output2 = model(image)  # .cuda(gpu0))
+                output = interp(output2).cpu().data[0].numpy()
         elif args.model == 'DeeplabVGG':
-            output = model(Variable(image, volatile=True).cuda(gpu0))
-            output = interp(output).cpu().data[0].numpy()
+            with torch.no_grad():
+                output = model(image)  # .cuda(gpu0))
+                output = interp(output).cpu().data[0].numpy()
 
-        output = output.transpose(1,2,0)
+        output = output.transpose(1, 2, 0)
         output = np.asarray(np.argmax(output, axis=2), dtype=np.uint8)
 
         output_col = colorize_mask(output)

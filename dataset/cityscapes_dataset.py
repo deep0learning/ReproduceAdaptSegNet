@@ -9,8 +9,10 @@ import torchvision
 from torch.utils import data
 from PIL import Image
 
+
 class cityscapesDataSet(data.Dataset):
-    def __init__(self, root, list_path, max_iters=None, crop_size=(321, 321), mean=(128, 128, 128), scale=True, mirror=True, ignore_label=255, set='val'):
+    def __init__(self, root, list_path, max_iters=None, crop_size=(321, 321), mean=(128, 128, 128), scale=True,
+                 mirror=True, ignore_label=255, set='val'):
         self.root = root
         self.list_path = list_path
         self.crop_size = crop_size
@@ -20,8 +22,8 @@ class cityscapesDataSet(data.Dataset):
         self.is_mirror = mirror
         # self.mean_bgr = np.array([104.00698793, 116.66876762, 122.67891434])
         self.img_ids = [i_id.strip() for i_id in open(list_path)]
-        if not max_iters==None:
-	    self.img_ids = self.img_ids * int(np.ceil(float(max_iters) / len(self.img_ids)))
+        if not max_iters == None:
+            self.img_ids = self.img_ids * int(np.ceil(float(max_iters) / len(self.img_ids)))
         self.files = []
         self.set = set
         # for split in ["train", "trainval", "val"]:

@@ -1,8 +1,5 @@
-import torch.nn as nn
-import math
-import torch.utils.model_zoo as model_zoo
-import torch
 import numpy as np
+import torch.nn as nn
 
 affine_par = True
 
@@ -21,6 +18,8 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
+## basic block for Resnet
+# that does not increase the channel number
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -52,9 +51,11 @@ class BasicBlock(nn.Module):
 
         return out
 
-
+## to increase the channel size
 class Bottleneck(nn.Module):
     expansion = 4
+
+    ## todo why in the implmentation the BN doesn't track the gradient.
 
     def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None):
         super(Bottleneck, self).__init__()
@@ -106,7 +107,8 @@ class Classifier_Module(nn.Module):
         self.conv2d_list = nn.ModuleList()
         for dilation, padding in zip(dilation_series, padding_series):
             self.conv2d_list.append(
-                nn.Conv2d(inplanes, num_classes, kernel_size=3, stride=1, padding=padding, dilation=dilation, bias=True))
+                nn.Conv2d(inplanes, num_classes, kernel_size=3, stride=1, padding=padding, dilation=dilation,
+                          bias=True))
 
         for m in self.conv2d_list:
             m.weight.data.normal_(0, 0.01)
@@ -227,4 +229,14 @@ class ResNetMulti(nn.Module):
 def DeeplabMulti(num_classes=21):
     model = ResNetMulti(Bottleneck, [3, 4, 23, 3], num_classes)
     return model
+
+if __name__ == '__main__':
+    net = DeeplabMulti(num_classes=21)
+    import torch
+    dummy_input = torch.zeros(1,3,1034,2048)
+
+    from tensorboardX import SummaryWriter
+    with SummaryWriter(comment='network') as w:
+        w.add_graph(net,input_to_model=(dummy_input,),verbose=True)
+
 
