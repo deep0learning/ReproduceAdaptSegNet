@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-from torch.autograd import Variable
 
 
 class CrossEntropy2d(nn.Module):
@@ -29,7 +28,7 @@ class CrossEntropy2d(nn.Module):
         target_mask = (target >= 0) * (target != self.ignore_label)
         target = target[target_mask]
         if not target.data.dim():
-            return Variable(torch.zeros(1))
+            return torch.zeros(1)
         predict = predict.transpose(1, 2).transpose(2, 3).contiguous()
         predict = predict[target_mask.view(n, h, w, 1).repeat(1, 1, 1, c)].view(-1, c)
         loss = F.cross_entropy(predict, target, weight=weight, size_average=self.size_average)

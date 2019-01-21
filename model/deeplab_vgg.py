@@ -31,7 +31,7 @@ class DeeplabVGG(nn.Module):
         features, classifier = list(vgg.features.children()), list(vgg.classifier.children())
 
         #remove pool4/pool5
-        features = nn.Sequential(*(features[i] for i in range(23)+range(24,30)))
+        features = nn.Sequential(*(features[i] for i in (list(range(23))+list(range(24,30)))))
 
         for i in [23,25,27]:
             features[i].dilation = (2,2)

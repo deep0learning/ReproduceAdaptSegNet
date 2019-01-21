@@ -1,17 +1,19 @@
 import argparse
 import os
-
+import warnings
 import numpy as np
 import torch
 import torch.nn as nn
 from PIL import Image
 from packaging import version
-from torch.autograd import Variable
 from torch.utils import data, model_zoo
-
+from tqdm import tqdm
 from dataset.cityscapes_dataset import cityscapesDataSet
 from model.deeplab_multi import DeeplabMulti
 from model.deeplab_vgg import DeeplabVGG
+
+warnings.filterwarnings('ignore')
+
 
 IMG_MEAN = np.array((104.00698793, 116.66876762, 122.67891434), dtype=np.float32)
 
@@ -97,7 +99,7 @@ def main():
 
     model.load_state_dict(saved_state_dict)
     model.eval()
-    # model.cuda(gpu0)
+    model.cuda(gpu0)
 
     testloader = data.DataLoader(
         cityscapesDataSet(args.data_dir,
@@ -116,18 +118,18 @@ def main():
     else:
         interp = nn.Upsample(size=(1024, 2048), mode='bilinear')
 
-    for index, batch in enumerate(testloader):
-        if index % 100 == 0:
+    for index, batch in tqdm(enumerate(testloader)):
+        if index % 10 == 0:
             print('%d processd' % index)
         image, _, name = batch
         output = None
         if args.model == 'DeeplabMulti':
             with torch.no_grad():
-                output1, output2 = model(image)  # .cuda(gpu0))
+                output1, output2 = model(image.cuda(gpu0))
                 output = interp(output2).cpu().data[0].numpy()
         elif args.model == 'DeeplabVGG':
             with torch.no_grad():
-                output = model(image)  # .cuda(gpu0))
+                output = model(image.cuda(gpu0))
                 output = interp(output).cpu().data[0].numpy()
 
         output = output.transpose(1, 2, 0)
