@@ -16,6 +16,9 @@ from dataset.gta5_dataset import GTA5DataSet
 from model.deeplab_multi import DeeplabMulti
 from model.discriminator import FCDiscriminator
 from utils.loss import CrossEntropy2d
+import warnings
+
+warnings.filterwarnings('ignore')
 
 IMG_MEAN = np.array((104.00698793, 116.66876762, 122.67891434), dtype=np.float32)
 
@@ -23,13 +26,13 @@ MODEL = 'DeepLab'
 BATCH_SIZE = 1
 ITER_SIZE = 1
 NUM_WORKERS = 4
-DATA_DIRECTORY = './data/GTA5'
+DATA_DIRECTORY = '/media/jizong/FCBA7A43BA79FB0A/dataset/GTA-5'
 DATA_LIST_PATH = './dataset/gta5_list/train.txt'
 IGNORE_LABEL = 255
-INPUT_SIZE = '1280,720'
+INPUT_SIZE = '512,256'
 DATA_DIRECTORY_TARGET = './data/Cityscapes/data'
 DATA_LIST_PATH_TARGET = './dataset/cityscapes_list/train.txt'
-INPUT_SIZE_TARGET = '1024,512'
+INPUT_SIZE_TARGET = '512,256'
 LEARNING_RATE = 2.5e-4
 MOMENTUM = 0.9
 NUM_CLASSES = 19
@@ -141,18 +144,21 @@ def loss_calc(pred, label, gpu):
     # out shape batch_size x channels x h x w -> batch_size x channels x h x w
     # label shape h x w x 1 x batch_size  -> batch_size x 1 x h x w
     label = Variable(label.long()).cuda(gpu)
+    ## here the weight is None for the cross-entropy project
     criterion = CrossEntropy2d().cuda(gpu)
 
     return criterion(pred, label)
 
 
 def lr_poly(base_lr, iter, max_iter, power):
+    ## this is for learning rate decay scheduler.
     return base_lr * ((1 - float(iter) / max_iter) ** (power))
 
 
 def adjust_learning_rate(optimizer, i_iter):
     lr = lr_poly(args.learning_rate, i_iter, args.num_steps, args.power)
     optimizer.param_groups[0]['lr'] = lr
+    # Here it assume that
     if len(optimizer.param_groups) > 1:
         optimizer.param_groups[1]['lr'] = lr * 10
 
@@ -300,8 +306,8 @@ def main():
             # proper normalization
             loss = loss / args.iter_size
             loss.backward()
-            loss_seg_value1 += loss_seg1.data.cpu().numpy()[0] / args.iter_size
-            loss_seg_value2 += loss_seg2.data.cpu().numpy()[0] / args.iter_size
+            loss_seg_value1 += loss_seg1.item() / args.iter_size
+            loss_seg_value2 += loss_seg2.item() / args.iter_size
 
             # train with target
 
@@ -327,8 +333,8 @@ def main():
             loss = args.lambda_adv_target1 * loss_adv_target1 + args.lambda_adv_target2 * loss_adv_target2
             loss = loss / args.iter_size
             loss.backward()
-            loss_adv_target_value1 += loss_adv_target1.data.cpu().numpy()[0] / args.iter_size
-            loss_adv_target_value2 += loss_adv_target2.data.cpu().numpy()[0] / args.iter_size
+            loss_adv_target_value1 += loss_adv_target1.item() / args.iter_size
+            loss_adv_target_value2 += loss_adv_target2.item() / args.iter_size
 
             # train D
 
@@ -358,8 +364,8 @@ def main():
             loss_D1.backward()
             loss_D2.backward()
 
-            loss_D_value1 += loss_D1.data.cpu().numpy()[0]
-            loss_D_value2 += loss_D2.data.cpu().numpy()[0]
+            loss_D_value1 += loss_D1.item()
+            loss_D_value2 += loss_D2.item()
 
             # train with target
             pred_target1 = pred_target1.detach()
@@ -380,8 +386,8 @@ def main():
             loss_D1.backward()
             loss_D2.backward()
 
-            loss_D_value1 += loss_D1.data.cpu().numpy()[0]
-            loss_D_value2 += loss_D2.data.cpu().numpy()[0]
+            loss_D_value1 += loss_D1.item()
+            loss_D_value2 += loss_D2.item()
 
         optimizer.step()
         optimizer_D1.step()
